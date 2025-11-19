@@ -6,58 +6,83 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         self.game = game
         
-        # TODO: "player_bicycle.png" 같은 이미지 파일로 교체
-        self.original_image = pygame.Surface((50, 80))
-        self.original_image.fill(self.game.COLORS["green"]) # 캐릭터 색상
-        # 예: self.original_image = pygame.image.load("assets/player.png").convert_alpha()
+        # --- 이미지 로드 ---
+        self.images = {}
+        try:
+            # 정면 (직진/UP)
+            img_straight = pygame.image.load("assets/player_straight.png").convert_alpha()
+            self.images["UP"] = pygame.transform.scale(img_straight, (60, 100))
+            
+            # 좌회전 (LEFT)
+            img_left = pygame.image.load("assets/player_left_turn.png").convert_alpha()
+            self.images["LEFT"] = pygame.transform.scale(img_left, (100, 80)) 
+            
+            # 우회전 (RIGHT)
+            img_right = pygame.image.load("assets/player_right_turn.png").convert_alpha()
+            self.images["RIGHT"] = pygame.transform.scale(img_right, (100, 80))
+            
+            # ★★★ 추가: 후진 (DOWN) 이미지 ★★★
+            img_back = pygame.image.load("assets/player_backward.png").convert_alpha()
+            self.images["DOWN"] = pygame.transform.scale(img_back, (60, 100))
+            
+        except Exception as e:
+            print(f"이미지 로드 실패: {e}")
+            # 이미지가 없을 경우 색상 박스로 대체 (오류 방지)
+            self.images["UP"] = pygame.Surface((50, 80))
+            self.images["UP"].fill(self.game.COLORS["green"])
+            self.images["LEFT"] = pygame.Surface((80, 50))
+            self.images["LEFT"].fill(self.game.COLORS["blue"])
+            self.images["RIGHT"] = pygame.Surface((80, 50))
+            self.images["RIGHT"].fill(self.game.COLORS["yellow"])
+            # DOWN fallback
+            self.images["DOWN"] = pygame.Surface((50, 80))
+            self.images["DOWN"].fill(self.game.COLORS["red"])
+
+        # 기본 방향 설정
+        self.current_direction = "UP"
+        self.image = self.images["UP"]
+        self.rect = self.image.get_rect(center=(self.game.SCREEN_WIDTH // 2, self.game.SCREEN_HEIGHT // 2 + 100))
         
-        self.image = self.original_image.copy()
-        self.rect = self.image.get_rect(center=(self.game.SCREEN_WIDTH // 2, self.game.SCREEN_HEIGHT - 100))
+        # 판정 존
+        self.grading_zone = pygame.Rect(0, 0, 20, 20)
+        self.grading_zone.center = self.rect.center
         
-        # '판정 존' - 이 영역에 도로 조각이 닿으면 미션 시작
-        self.grading_zone = self.rect.copy().inflate(0, 50)
-        
-        # 애니메이션용 변수
         self.is_animating = False
-        self.animation_target_x = 0
-        self.animation_speed = 15
 
     def update(self):
-        """성공/실패 애니메이션을 처리합니다."""
-        if not self.is_animating:
-            return
-
-        # 목표 X좌표로 이동
-        if self.rect.centerx < self.animation_target_x:
-            self.rect.centerx += self.animation_speed
-            if self.rect.centerx >= self.animation_target_x: self.is_animating = False
-        elif self.rect.centerx > self.animation_target_x:
-            self.rect.centerx -= self.animation_speed
-            if self.rect.centerx <= self.animation_target_x: self.is_animating = False
+        self.grading_zone.center = self.rect.center
         
-        # 'crash'의 경우 (target_x가 중앙) 흔들림 효과 추가
-        if self.animation_target_x == self.game.SCREEN_WIDTH // 2: 
+        # 충돌(Crash) 애니메이션 (흔들림)
+        if self.is_animating:
              self.rect.centerx += random.randint(-5, 5)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
     def turn(self, direction):
-        """성공 시 턴 애니메이션 시작"""
+        """game.py에서 호출하는 방향 전환 함수 (애니메이션용)"""
+        # direction 문자열: "좌회전", "우회전"
         if direction == "좌회전":
-            self.animation_target_x = -100 # 화면 왼쪽 밖
+            self.set_direction("LEFT")
         elif direction == "우회전":
-            self.animation_target_x = self.game.SCREEN_WIDTH + 100 # 화면 오른쪽 밖
-        self.is_animating = True
+            self.set_direction("RIGHT")
+        else:
+            self.set_direction("UP")
+
+    def set_direction(self, direction):
+        """실제 이미지와 방향을 변경하는 함수"""
+        if direction in self.images:
+            self.current_direction = direction
+            self.image = self.images[direction]
+            # 이미지 크기가 달라질 수 있으므로 중심점 유지하며 rect 재설정
+            old_center = self.rect.center
+            self.rect = self.image.get_rect(center=old_center)
 
     def crash(self):
-        """실패 시 충돌 애니메이션"""
-        self.animation_target_x = self.game.SCREEN_WIDTH // 2
+        """충돌 효과"""
         self.is_animating = True 
-        # TODO: "쿵!" 하는 소리 재생
 
     def reset_position(self):
-        """캐릭터를 중앙 하단으로 리셋"""
         self.is_animating = False
-        self.image = self.original_image.copy()
-        self.rect = self.image.get_rect(center=(self.game.SCREEN_WIDTH // 2, self.game.SCREEN_HEIGHT - 100))
+        self.set_direction("UP")
+        self.rect.center = (self.game.SCREEN_WIDTH // 2, self.game.SCREEN_HEIGHT // 2 + 100)
