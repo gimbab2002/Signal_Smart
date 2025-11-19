@@ -19,7 +19,6 @@ class Game:
 
     def __init__(self):
         pygame.init()
-<<<<<<< HEAD
         
         info = pygame.display.Info()
         self.SCREEN_WIDTH = info.current_w
@@ -28,12 +27,6 @@ class Game:
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
         pygame.display.set_caption("SignalSmart 4방향 런너 (Full Screen)")
         
-=======
-        self.SCREEN_WIDTH = 1600
-        self.SCREEN_HEIGHT = 900
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        pygame.display.set_caption("SignalSmart 2D 런너 게임 (v3 - 분리됨)")
->>>>>>> feature_ui
         self.clock = pygame.time.Clock()
 
         # 배경 이미지 로딩
@@ -90,17 +83,13 @@ class Game:
         running = True
         while running:
             for event in pygame.event.get():
-<<<<<<< HEAD
-                if event.type == pygame.QUIT: running = False
+                if event.type == pygame.QUIT:
+                    running = False
+                
+                # ESC 종료
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
-                        
-                if self.game_state == self.STATE_MENU and event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN: self.start_game()
-=======
-                if event.type == pygame.QUIT:
-                    running = False
 
             # --- 메뉴 상태에서 버튼 클릭 감지
                 if self.game_state == self.STATE_MENU:
@@ -110,7 +99,6 @@ class Game:
             # 버튼 클릭 여부 체크
                         if self.btn_start_rect.collidepoint(mouse_pos):
                             self.start_game()
->>>>>>> feature_ui
             
             self.pose_detector.update()
             
@@ -260,19 +248,12 @@ class Game:
             self.draw_game()
 
     def draw_menu(self):
-<<<<<<< HEAD
-        self.draw_text("SignalSmart 4-Way", self.font_large, self.COLORS["white"], self.SCREEN_WIDTH // 2, 250)
-        self.draw_text("Press ENTER to Start", self.font_medium, self.COLORS["yellow"], self.SCREEN_WIDTH // 2, 450)
-        self.draw_text("(ESC to Quit)", self.font_small, self.COLORS["white"], self.SCREEN_WIDTH // 2, 550)
-        self.draw_webcam_minimap()
-=======
         self.screen.blit(self.bg_main, (0, 0))
     # TITLE 버튼 
         self.screen.blit(self.title_banner, self.title_banner_rect)
     # START 버튼 
         self.screen.blit(self.btn_start, self.btn_start_rect)
-
->>>>>>> feature_ui
+        self.draw_webcam_minimap()
 
     def draw_game(self):
         self.road_segments.draw(self.screen)
