@@ -20,11 +20,10 @@ class Game:
     def __init__(self):
         pygame.init()
         
-        info = pygame.display.Info()
-        self.SCREEN_WIDTH = info.current_w
-        self.SCREEN_HEIGHT = info.current_h
-        
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
+        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+
+        self.SCREEN_WIDTH, self.SCREEN_HEIGHT = self.screen.get_size()
+
         pygame.display.set_caption("SignalSmart 4방향 런너 (Full Screen)")
         
         self.clock = pygame.time.Clock()
@@ -42,8 +41,13 @@ class Game:
         # 게임 시작 버튼 이미지 로딩
         self.btn_start = pygame.image.load("assets/ui/btn_start.png").convert_alpha()
 
-        # 버튼 위치 설정
+        # 시작 버튼 위치 설정
         self.btn_start_rect = self.btn_start.get_rect(center=(self.SCREEN_WIDTH // 2, 540))
+
+        # 랭킹 버튼 이미지 로딩
+        self.btn_ranking = pygame.image.load("assets/ui/btn_ranking.png").convert_alpha()
+
+        self.btn_ranking_rect = self.btn_ranking.get_rect(center=(self.SCREEN_WIDTH // 2, 680)) 
         
         self.COLORS = {
             "dark_blue": (44, 62, 80), "white": (255, 255, 255),
@@ -99,6 +103,9 @@ class Game:
             # 버튼 클릭 여부 체크
                         if self.btn_start_rect.collidepoint(mouse_pos):
                             self.start_game()
+
+                        elif self.btn_ranking_rect.collidepoint(mouse_pos):
+                            self.open_ranking()
             
             self.pose_detector.update()
             
@@ -253,7 +260,12 @@ class Game:
         self.screen.blit(self.title_banner, self.title_banner_rect)
     # START 버튼 
         self.screen.blit(self.btn_start, self.btn_start_rect)
-        self.draw_webcam_minimap()
+    # RANKING 버튼
+        self.screen.blit(self.btn_ranking, self.btn_ranking_rect)
+
+    def open_ranking(self):
+        print(">>> RANKING PAGE OPENED (미구현)")
+            # TODO : 추후 랭킹 UI 구현
 
     def draw_game(self):
         self.road_segments.draw(self.screen)
