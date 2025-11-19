@@ -6,6 +6,7 @@ import numpy as np
 from player import Player
 from road import RoadSegment
 from pose_detector import PoseDetector
+from background import Background
 
 class Game:
     STATE_MENU = 0
@@ -18,10 +19,14 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        self.SCREEN_WIDTH = 800
-        self.SCREEN_HEIGHT = 900
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        pygame.display.set_caption("SignalSmart 4방향 런너 (v8 - 방향전환 수정)")
+        
+        info = pygame.display.Info()
+        self.SCREEN_WIDTH = info.current_w
+        self.SCREEN_HEIGHT = info.current_h
+        
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
+        pygame.display.set_caption("SignalSmart 4방향 런너 (Full Screen)")
+        
         self.clock = pygame.time.Clock()
         
         self.COLORS = {
@@ -37,7 +42,9 @@ class Game:
         self.pose_detector = PoseDetector() 
         print("Warming up camera...")
         self.pose_detector.start()
-            
+        
+        self.background = Background(self)
+        
         self.player = Player(self)
         self.road_segments = pygame.sprite.Group()
         
@@ -51,7 +58,7 @@ class Game:
         self.active_mission_segment = None
         
         self.player_direction = "UP" 
-        self.base_speed = 10
+        self.base_speed = 15 
         self.world_velocity = [0, -self.base_speed] 
         self.last_spawned_segment = None 
         self.tiles_to_spawn = 0 
@@ -61,6 +68,10 @@ class Game:
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                        
                 if self.game_state == self.STATE_MENU and event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN: self.start_game()
             
@@ -84,35 +95,32 @@ class Game:
         sys.exit()
 
     def update_playing(self):
-        # 1. 속도 설정 (방향에 따라) - ★★★ 속도 방향 수정 ★★★
-        # 플레이어가 오른쪽으로 가면, 배경은 왼쪽(-X)으로 가야 함
         if self.player_direction == "UP": 
             self.world_velocity = [0, -self.base_speed]
         elif self.player_direction == "DOWN": 
             self.world_velocity = [0, self.base_speed]
         elif self.player_direction == "LEFT": 
-            self.world_velocity = [-self.base_speed, 0] # 배경은 오른쪽(+X)으로 이동 (X -= -10 => X += 10)
+            self.world_velocity = [-self.base_speed, 0]
         elif self.player_direction == "RIGHT": 
-            self.world_velocity = [self.base_speed, 0]  # 배경은 왼쪽(-X)으로 이동 (X -= 10)
+            self.world_velocity = [self.base_speed, 0]
 
+        self.background.update()
+        
         self.road_segments.update()
         
         if self.last_spawned_segment:
             lx, ly = self.last_spawned_segment.exit_point
-            margin = 100
+            margin = 200
             in_view = (-margin < lx < self.SCREEN_WIDTH + margin) and (-margin < ly < self.SCREEN_HEIGHT + margin)
-            
             if in_view:
                 self.spawn_next_road()
         else:
             self.spawn_next_road()
 
         for segment in self.road_segments:
-            # ★★★ 핵심 수정: 이미 판정한 도로(segment.is_judged)는 무시 ★★★
             if segment.mission_name and not segment.is_judged:
                 dist = np.linalg.norm(np.array(self.player.rect.center) - np.array(segment.rect.center))
-                # 판정 거리 내에 들어오면
-                if dist < 30: 
+                if dist < 50: 
                     self.start_grading(segment)
                     break
 
@@ -132,9 +140,7 @@ class Game:
         self.last_spawned_segment = new_segment
 
     def start_grading(self, segment):
-        # ★★★ 핵심 수정: 미션 시작 시 바로 '판정됨' 처리 ★★★
         segment.is_judged = True
-        
         self.game_state = self.STATE_GRADING
         self.current_mission = segment.mission_name
         self.active_mission_segment = segment
@@ -166,6 +172,7 @@ class Game:
             acc = correct / len(self.pose_buffer)
         else: acc = 0
         
+        # 1. 점수 및 결과 처리
         if acc >= 0.4: 
             self.result_text = "SUCCESS!"
             self.score += 100
@@ -174,7 +181,7 @@ class Game:
             self.mistakes += 1
             self.player.crash()
             
-        # 핵심 수정: 실제 이동 방향 변경 로직 복구 
+        # 2. ★★★ 방향 전환 (성공/실패 여부와 상관없이 무조건 실행) ★★★
         if self.current_mission == "좌회전":
             if self.player_direction == "UP": self.player_direction = "LEFT"
             elif self.player_direction == "LEFT": self.player_direction = "DOWN"
@@ -208,16 +215,17 @@ class Game:
             self.game_state = self.STATE_MENU
 
     def draw(self):
-        self.screen.fill(self.COLORS["road_gray"]) 
+        self.background.draw(self.screen)
+        
         if self.game_state == self.STATE_MENU:
             self.draw_menu()
         else:
             self.draw_game()
 
     def draw_menu(self):
-        self.screen.fill(self.COLORS["dark_blue"]) 
         self.draw_text("SignalSmart 4-Way", self.font_large, self.COLORS["white"], self.SCREEN_WIDTH // 2, 250)
-        self.draw_text("Press ENTER", self.font_medium, self.COLORS["yellow"], self.SCREEN_WIDTH // 2, 450)
+        self.draw_text("Press ENTER to Start", self.font_medium, self.COLORS["yellow"], self.SCREEN_WIDTH // 2, 450)
+        self.draw_text("(ESC to Quit)", self.font_small, self.COLORS["white"], self.SCREEN_WIDTH // 2, 550)
         self.draw_webcam_minimap()
 
     def draw_game(self):
@@ -254,26 +262,24 @@ class Game:
     def start_game(self):
         if self.pose_detector.cap is None: self.pose_detector.start()
         
-        # ★★★ 핵심 수정: 게임 변수 완벽 초기화 ★★★
         self.score = 0
         self.mistakes = 0
         self.road_segments.empty()
         self.player.reset_position()
         
-        self.player_direction = "UP" # 방향도 초기화
-        self.world_velocity = [0, -self.base_speed] # 속도 벡터 초기화
-        self.player.set_direction("UP") # 이미지 회전 초기화
+        self.player_direction = "UP" 
+        self.world_velocity = [0, -self.base_speed] 
+        self.player.set_direction("UP") 
         
         self.last_spawned_segment = None
-        self.active_mission_segment = None # 활성 미션 초기화
+        self.active_mission_segment = None
         
-        # 초기 도로 생성
         start_seg = RoadSegment(self, 'straight')
         start_seg.rect.center = self.player.rect.center
         self.road_segments.add(start_seg)
         self.last_spawned_segment = start_seg
         
-        for _ in range(5): self.spawn_next_road()
+        for _ in range(8): self.spawn_next_road()
         
         self.game_state = self.STATE_PLAYING
 
