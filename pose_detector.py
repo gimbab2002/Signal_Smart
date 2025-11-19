@@ -89,7 +89,7 @@ class PoseDetector:
                 right_arm_angle = calculate_angle(elbow_R, shoulder_R, hip_R)
                 shoulder_wrist_y_diff = abs(shoulder_R[1] - wrist_R[1])
                 shoulder_elbow_y_diff = abs(shoulder_R[1] - elbow_R[1])
-                is_left_turn_gesture = (right_elbow_angle > 165) and (shoulder_wrist_y_diff < 0.15)  and (wrist_R[0] < shoulder_R[0]) and ( 75 < right_arm_angle < 105)
+                is_left_turn_gesture = (right_elbow_angle > 150) and (shoulder_wrist_y_diff < 0.15)  and (wrist_R[0] < shoulder_R[0]) and ( 75 < right_arm_angle < 105)
                 is_right_turn_gesture = (75 < right_elbow_angle < 105) and (wrist_R[1] < elbow_R[1]) and (shoulder_elbow_y_diff < 0.15) and (wrist_R[0] < shoulder_R[0]) and ( 75 < right_arm_angle < 105)
                 is_stop_gesture = (right_elbow_angle > 165) and (wrist_R[1] > shoulder_R[1] + 0.15) and (30 < right_arm_angle < 80) and (wrist_R[0] < shoulder_R[0])
 

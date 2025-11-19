@@ -4,7 +4,8 @@ import random
 import numpy as np
 
 from player import Player
-from road import RoadSegment
+# road.py에서 방향 상수 import
+from road import RoadSegment, DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT 
 from pose_detector import PoseDetector
 from background import Background
 
@@ -19,13 +20,11 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-
-        self.SCREEN_WIDTH, self.SCREEN_HEIGHT = self.screen.get_size()
-
-        pygame.display.set_caption("SignalSmart 4방향 런너 (Full Screen)")
-        
+        info = pygame.display.Info()
+        self.SCREEN_WIDTH = info.current_w
+        self.SCREEN_HEIGHT = info.current_h
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
+        pygame.display.set_caption("SignalSmart Final Count (v21)")
         self.clock = pygame.time.Clock()
 
         # 배경 이미지 로딩
@@ -60,13 +59,18 @@ class Game:
         self.font_small = pygame.font.SysFont("malgungothic", 24)
 
         self.pose_detector = PoseDetector() 
-        print("Warming up camera...")
         self.pose_detector.start()
         
         self.background = Background(self)
-        
         self.player = Player(self)
         self.road_segments = pygame.sprite.Group()
+        
+        # ★★★ 추가: 생성된 도로 순서 관리용 리스트 ★★★
+        self.generated_roads = []
+        
+        # --- 큐 변수 ---
+        self.map_queue = [] 
+        self.logical_direction = DIR_UP 
         
         self.game_state = self.STATE_MENU
         self.score = 0
@@ -76,12 +80,10 @@ class Game:
         self.pose_buffer = []
         self.last_state_change_time = 0
         self.active_mission_segment = None
-        
-        self.player_direction = "UP" 
+        self.player_direction = DIR_UP 
         self.base_speed = 15 
         self.world_velocity = [0, -self.base_speed] 
         self.last_spawned_segment = None 
-        self.tiles_to_spawn = 0 
 
     def run(self):
         running = True
@@ -126,51 +128,90 @@ class Game:
         pygame.quit()
         sys.exit()
 
+    def fill_map_queue(self):
+        while len(self.map_queue) < 20:
+            count = random.randint(3, 6) 
+            for _ in range(count):
+                self.map_queue.append('straight')
+            
+            mission = random.choice(['left_turn', 'right_turn', 'stop_signal'])
+            self.map_queue.append(mission)
+            
+            if mission == 'left_turn':
+                if self.logical_direction == DIR_UP: self.logical_direction = DIR_LEFT
+                elif self.logical_direction == DIR_LEFT: self.logical_direction = DIR_DOWN
+                elif self.logical_direction == DIR_DOWN: self.logical_direction = DIR_RIGHT
+                elif self.logical_direction == DIR_RIGHT: self.logical_direction = DIR_UP
+            elif mission == 'right_turn':
+                if self.logical_direction == DIR_UP: self.logical_direction = DIR_RIGHT
+                elif self.logical_direction == DIR_RIGHT: self.logical_direction = DIR_DOWN
+                elif self.logical_direction == DIR_DOWN: self.logical_direction = DIR_LEFT
+                elif self.logical_direction == DIR_LEFT: self.logical_direction = DIR_UP
+
+    def spawn_from_queue(self):
+        if not self.map_queue: return
+
+        segment_type = self.map_queue.pop(0)
+        new_segment = RoadSegment(self, segment_type, self.last_spawned_segment)
+        
+        self.road_segments.add(new_segment)
+        # ★★★ 리스트에도 추가 (순서 관리용) ★★★
+        self.generated_roads.append(new_segment)
+        
+        self.last_spawned_segment = new_segment
+
+    def cleanup_segments(self):
+        """★ 수정됨: 리스트 개수 기반으로 정확하게 삭제 ★"""
+        # 도로가 20개를 넘으면 가장 오래된 것(리스트의 0번째)을 삭제
+        while len(self.generated_roads) > 20:
+            old_segment = self.generated_roads.pop(0) # 리스트에서 제거
+            old_segment.kill() # 스프라이트 그룹에서 제거 (화면에서 사라짐)
+
     def update_playing(self):
-        if self.player_direction == "UP": 
-            self.world_velocity = [0, -self.base_speed]
-        elif self.player_direction == "DOWN": 
-            self.world_velocity = [0, self.base_speed]
-        elif self.player_direction == "LEFT": 
-            self.world_velocity = [-self.base_speed, 0]
-        elif self.player_direction == "RIGHT": 
-            self.world_velocity = [self.base_speed, 0]
+        if self.player_direction == DIR_UP: self.world_velocity = [0, -self.base_speed]
+        elif self.player_direction == DIR_DOWN: self.world_velocity = [0, self.base_speed]
+        elif self.player_direction == DIR_LEFT: self.world_velocity = [-self.base_speed, 0]
+        elif self.player_direction == DIR_RIGHT: self.world_velocity = [self.base_speed, 0]
+        
+        self.fill_map_queue()
+        
+        # ★★★ 생성 조건: 선두 거리 체크 (앞이 비면 채움) ★★★
+        if self.last_spawned_segment:
+            player_pos = np.array(self.player.rect.center)
+            # 안전하게 반복 생성
+            while True:
+                exit_pos = np.array(self.last_spawned_segment.exit_point)
+                dist_to_head = np.linalg.norm(exit_pos - player_pos)
+                
+                # 화면 밖(2000px)까지 도로가 꽉 차있지 않으면 계속 생성
+                if dist_to_head < 2000:
+                    self.spawn_from_queue()
+                else:
+                    break
+        else:
+            self.spawn_from_queue()
+            
+        # ★★★ 삭제 조건: 개수 체크 (뒤를 자름) ★★★
+        self.cleanup_segments()
 
         self.background.update()
-        
         self.road_segments.update()
         
-        if self.last_spawned_segment:
-            lx, ly = self.last_spawned_segment.exit_point
-            margin = 200
-            in_view = (-margin < lx < self.SCREEN_WIDTH + margin) and (-margin < ly < self.SCREEN_HEIGHT + margin)
-            if in_view:
-                self.spawn_next_road()
-        else:
-            self.spawn_next_road()
-
         for segment in self.road_segments:
             if segment.mission_name and not segment.is_judged:
                 dist = np.linalg.norm(np.array(self.player.rect.center) - np.array(segment.rect.center))
-                if dist < 50: 
+                
+                threshold = 50 # 기본 거리 (좌/우회전은 가까이서)
+                
+                if segment.mission_name == "정지":
+                    threshold = 250 # 정지는 150px 앞에서 미리 멈춤
+                
+                if dist < threshold: 
                     self.start_grading(segment)
                     break
 
-    def spawn_next_road(self):
-        if self.tiles_to_spawn > 0:
-            seg_type = 'straight'
-            self.tiles_to_spawn -= 1
-        else:
-            if random.random() < 0.4:
-                seg_type = random.choice(['left_turn', 'right_turn', 'stop_signal'])
-                self.tiles_to_spawn = 3 
-            else:
-                seg_type = 'straight'
-        
-        new_segment = RoadSegment(self, seg_type, self.last_spawned_segment)
-        self.road_segments.add(new_segment)
-        self.last_spawned_segment = new_segment
-
+    # ... (start_grading, update_grading 등은 기존 유지) ...
+    
     def start_grading(self, segment):
         segment.is_judged = True
         self.game_state = self.STATE_GRADING
@@ -204,29 +245,49 @@ class Game:
             acc = correct / len(self.pose_buffer)
         else: acc = 0
         
-        # 1. 점수 및 결과 처리
         if acc >= 0.4: 
             self.result_text = "SUCCESS!"
             self.score += 100
+            
+            if self.current_mission == "좌회전":
+                if self.player_direction == DIR_UP: self.player_direction = DIR_LEFT
+                elif self.player_direction == DIR_LEFT: self.player_direction = DIR_DOWN
+                elif self.player_direction == DIR_DOWN: self.player_direction = DIR_RIGHT
+                elif self.player_direction == DIR_RIGHT: self.player_direction = DIR_UP
+            elif self.current_mission == "우회전":
+                if self.player_direction == DIR_UP: self.player_direction = DIR_RIGHT
+                elif self.player_direction == DIR_RIGHT: self.player_direction = DIR_DOWN
+                elif self.player_direction == DIR_DOWN: self.player_direction = DIR_LEFT
+                elif self.player_direction == DIR_LEFT: self.player_direction = DIR_UP
+            
+            dir_str = "UP"
+            if self.player_direction == DIR_LEFT: dir_str = "LEFT"
+            elif self.player_direction == DIR_RIGHT: dir_str = "RIGHT"
+            elif self.player_direction == DIR_DOWN: dir_str = "DOWN"
+            self.player.set_direction(dir_str)
+            
         else: 
             self.result_text = "FAIL"
             self.mistakes += 1
             self.player.crash()
             
-        # 2. ★★★ 방향 전환 (성공/실패 여부와 상관없이 무조건 실행) ★★★
-        if self.current_mission == "좌회전":
-            if self.player_direction == "UP": self.player_direction = "LEFT"
-            elif self.player_direction == "LEFT": self.player_direction = "DOWN"
-            elif self.player_direction == "DOWN": self.player_direction = "RIGHT"
-            elif self.player_direction == "RIGHT": self.player_direction = "UP"
+            # 실패 시에도 방향 전환
+            if self.current_mission == "좌회전":
+                if self.player_direction == DIR_UP: self.player_direction = DIR_LEFT
+                elif self.player_direction == DIR_LEFT: self.player_direction = DIR_DOWN
+                elif self.player_direction == DIR_DOWN: self.player_direction = DIR_RIGHT
+                elif self.player_direction == DIR_RIGHT: self.player_direction = DIR_UP
+            elif self.current_mission == "우회전":
+                if self.player_direction == DIR_UP: self.player_direction = DIR_RIGHT
+                elif self.player_direction == DIR_RIGHT: self.player_direction = DIR_DOWN
+                elif self.player_direction == DIR_DOWN: self.player_direction = DIR_LEFT
+                elif self.player_direction == DIR_LEFT: self.player_direction = DIR_UP
             
-        elif self.current_mission == "우회전":
-            if self.player_direction == "UP": self.player_direction = "RIGHT"
-            elif self.player_direction == "RIGHT": self.player_direction = "DOWN"
-            elif self.player_direction == "DOWN": self.player_direction = "LEFT"
-            elif self.player_direction == "LEFT": self.player_direction = "UP"
-        
-        self.player.set_direction(self.player_direction)
+            dir_str = "UP"
+            if self.player_direction == DIR_LEFT: dir_str = "LEFT"
+            elif self.player_direction == DIR_RIGHT: dir_str = "RIGHT"
+            elif self.player_direction == DIR_DOWN: dir_str = "DOWN"
+            self.player.set_direction(dir_str)
         
         self.active_mission_segment = None
         self.game_state = self.STATE_RESULT_ANIM
@@ -248,7 +309,6 @@ class Game:
 
     def draw(self):
         self.background.draw(self.screen)
-        
         if self.game_state == self.STATE_MENU:
             self.draw_menu()
         else:
@@ -275,10 +335,8 @@ class Game:
         
         if self.game_state == self.STATE_GRADING or self.game_state == self.STATE_RESULT_ANIM:
              self.draw_text(self.result_text, self.font_large, self.COLORS["yellow"], self.SCREEN_WIDTH//2, 150)
-
         if self.game_state == self.STATE_GAMEOVER:
             self.draw_text("GAME OVER", self.font_large, self.COLORS["red"], self.SCREEN_WIDTH//2, 300)
-
         self.draw_webcam_minimap()
 
     def draw_webcam_minimap(self):
@@ -304,21 +362,36 @@ class Game:
         self.score = 0
         self.mistakes = 0
         self.road_segments.empty()
+        self.generated_roads = [] # ★ 리스트도 초기화
         self.player.reset_position()
         
-        self.player_direction = "UP" 
+        self.player_direction = DIR_UP 
         self.world_velocity = [0, -self.base_speed] 
         self.player.set_direction("UP") 
         
-        self.last_spawned_segment = None
         self.active_mission_segment = None
+        self.pose_buffer = []
         
+        # 큐 초기화
+        self.map_queue = ['straight', 'straight', 'straight', 'stop_signal']
+        self.logical_direction = DIR_UP
+        
+        self.last_spawned_segment = None
+        
+        # 초기 도로 생성 (직진)
         start_seg = RoadSegment(self, 'straight')
         start_seg.rect.center = self.player.rect.center
+        
         self.road_segments.add(start_seg)
+        self.generated_roads.append(start_seg) # ★ 리스트에 추가
         self.last_spawned_segment = start_seg
         
-        for _ in range(8): self.spawn_next_road()
+        # 초기 화면 채우기 (거리 기반 함수 사용)
+        # 여기서 update_playing을 한번 돌려주거나 루프를 돔
+        # 안전하게 15개 채우기
+        self.fill_map_queue()
+        for _ in range(15):
+            self.spawn_from_queue()
         
         self.game_state = self.STATE_PLAYING
 
