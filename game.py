@@ -21,11 +21,27 @@ class Game:
     def __init__(self):
         # --- PyGame 초기화 ---
         pygame.init()
-        self.SCREEN_WIDTH = 800
+        self.SCREEN_WIDTH = 1600
         self.SCREEN_HEIGHT = 900
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         pygame.display.set_caption("SignalSmart 2D 런너 게임 (v3 - 분리됨)")
         self.clock = pygame.time.Clock()
+
+        # 배경 이미지 로딩
+        self.bg_main = pygame.image.load("assets/ui/main_bg.png").convert()
+        self.bg_main = pygame.transform.scale(self.bg_main, (self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+
+        # 타이틀 이미지(투명 PNG)
+        self.title_banner = pygame.image.load("assets/ui/title_banner.png").convert_alpha()
+
+        # 타이틀 이미지 위치 설정
+        self.title_banner_rect = self.title_banner.get_rect(center=(self.SCREEN_WIDTH // 2, 200))
+
+        # 게임 시작 버튼 이미지 로딩
+        self.btn_start = pygame.image.load("assets/ui/btn_start.png").convert_alpha()
+
+        # 버튼 위치 설정
+        self.btn_start_rect = self.btn_start.get_rect(center=(self.SCREEN_WIDTH // 2, 540))
         
         # --- 색상 및 폰트 ---
         self.COLORS = {
@@ -67,9 +83,15 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                if self.game_state == self.STATE_MENU and event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
-                        self.start_game()
+
+            # --- 메뉴 상태에서 버튼 클릭 감지
+                if self.game_state == self.STATE_MENU:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+
+            # 버튼 클릭 여부 체크
+                        if self.btn_start_rect.collidepoint(mouse_pos):
+                            self.start_game()
             
             # --- 2. 업데이트 ---
             self.pose_detector.update() # ★ 매 프레임 포즈 감지 업데이트
@@ -170,10 +192,12 @@ class Game:
             self.draw_game()
 
     def draw_menu(self):
-        self.screen.fill(self.COLORS["dark_blue"]) 
-        self.draw_text("SignalSmart 2D", self.font_large, self.COLORS["white"], self.SCREEN_WIDTH // 2, 250)
-        self.draw_text("자전거 수신호 게임 (v3)", self.font_large, self.COLORS["white"], self.SCREEN_WIDTH // 2, 320)
-        self.draw_text("Press ENTER to Start", self.font_medium, self.COLORS["yellow"], self.SCREEN_WIDTH // 2, 450)
+        self.screen.blit(self.bg_main, (0, 0))
+    # TITLE 버튼 
+        self.screen.blit(self.title_banner, self.title_banner_rect)
+    # START 버튼 
+        self.screen.blit(self.btn_start, self.btn_start_rect)
+
 
     def draw_game(self):
         self.road_segments.draw(self.screen)
