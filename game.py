@@ -20,16 +20,18 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        info = pygame.display.Info()
-        self.SCREEN_WIDTH = info.current_w
-        self.SCREEN_HEIGHT = info.current_h
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
+        info = pygame.display.Info()     
+        self.screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
+        
+        self.SCREEN_WIDTH, self.SCREEN_HEIGHT = self.screen.get_size()
+
+        
         pygame.display.set_caption("SignalSmart Final Count (v21)")
         self.clock = pygame.time.Clock()
 
         # 배경 이미지 로딩
-        self.bg_main = pygame.image.load("assets/ui/main_bg.png").convert()
-        self.bg_main = pygame.transform.scale(self.bg_main, (self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        original_image = pygame.image.load("assets/ui/main_bg.png").convert()
+        self.bg_main = pygame.transform.scale(original_image, (self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
 
         # 타이틀 이미지(투명 PNG)
         self.title_banner = pygame.image.load("assets/ui/title_banner.png").convert_alpha()
