@@ -375,7 +375,7 @@ class Game:
         self.pose_buffer = []
         
         # 큐 초기화
-        self.map_queue = ['straight', 'straight', 'straight', 'stop_signal']
+        self.map_queue = []
         self.logical_direction = DIR_UP
         
         self.last_spawned_segment = None
