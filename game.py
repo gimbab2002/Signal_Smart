@@ -15,6 +15,7 @@ class Game:
     STATE_GRADING = 2
     STATE_RESULT_ANIM = 4
     STATE_GAMEOVER = 3
+    STATE_HELP = 5
     
     MISSIONS = ["좌회전", "우회전", "정지"] 
 
@@ -35,20 +36,27 @@ class Game:
 
         # 타이틀 이미지(투명 PNG)
         self.title_banner = pygame.image.load("assets/ui/title_banner.png").convert_alpha()
-
         # 타이틀 이미지 위치 설정
         self.title_banner_rect = self.title_banner.get_rect(center=(self.SCREEN_WIDTH // 2, 200))
 
         # 게임 시작 버튼 이미지 로딩
         self.btn_start = pygame.image.load("assets/ui/btn_start.png").convert_alpha()
-
         # 시작 버튼 위치 설정
         self.btn_start_rect = self.btn_start.get_rect(center=(self.SCREEN_WIDTH // 2, 540))
 
         # 랭킹 버튼 이미지 로딩
         self.btn_ranking = pygame.image.load("assets/ui/btn_ranking.png").convert_alpha()
+        # 랭킹 버튼 위치 설정
+        self.btn_ranking_rect = self.btn_ranking.get_rect(center=(self.SCREEN_WIDTH // 1.5, 680)) 
 
-        self.btn_ranking_rect = self.btn_ranking.get_rect(center=(self.SCREEN_WIDTH // 2, 680)) 
+        # 수신호 교육 버튼 이미지 로딩
+        self.btn_tutorial = pygame.image.load("assets/ui/btn_tutorial.png").convert_alpha()
+        # 수신호 교육 버튼 위치 설정
+        self.btn_tutorial_rect = self.btn_tutorial.get_rect(center=(self.SCREEN_WIDTH // 3.14, 680))
+
+        # 수신호 팝업 이미지 로딩
+        self.help_img = pygame.image.load("assets/ui/help_popup.png").convert_alpha()
+        self.help_img_rect = self.help_img.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
         
         self.COLORS = {
             "dark_blue": (44, 62, 80), "white": (255, 255, 255),
@@ -99,17 +107,28 @@ class Game:
                     if event.key == pygame.K_ESCAPE:
                         running = False
 
+                # HELP 팝업 상태 처리
+                if self.game_state == self.STATE_HELP:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        self.game_state = self.STATE_MENU
+                    continue
+
             # --- 메뉴 상태에서 버튼 클릭 감지
                 if self.game_state == self.STATE_MENU:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         mouse_pos = pygame.mouse.get_pos()
 
-            # 버튼 클릭 여부 체크
+                        # START 버튼 클릭
                         if self.btn_start_rect.collidepoint(mouse_pos):
                             self.start_game()
 
+                        # RANKING 버튼 클릭
                         elif self.btn_ranking_rect.collidepoint(mouse_pos):
                             self.open_ranking()
+
+                        # TUTORIAL 버튼 클릭
+                        elif self.btn_tutorial_rect.collidepoint(mouse_pos):
+                            self.game_state = self.STATE_HELP
             
             self.pose_detector.update()
             
@@ -313,6 +332,8 @@ class Game:
         self.background.draw(self.screen)
         if self.game_state == self.STATE_MENU:
             self.draw_menu()
+        elif self.game_state == self.STATE_HELP:
+            self.draw_help_popup()
         else:
             self.draw_game()
 
@@ -324,6 +345,14 @@ class Game:
         self.screen.blit(self.btn_start, self.btn_start_rect)
     # RANKING 버튼
         self.screen.blit(self.btn_ranking, self.btn_ranking_rect)
+    # TUTORIAL 버튼
+        self.screen.blit(self.btn_tutorial, self.btn_tutorial_rect)
+
+    def draw_help_popup(self):
+        self.screen.blit(self.bg_main, (0, 0))
+        
+        # 도움말 이미지 표시
+        self.screen.blit(self.help_img, self.help_img_rect)
 
     def open_ranking(self):
         print(">>> RANKING PAGE OPENED (미구현)")
