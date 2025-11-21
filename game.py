@@ -385,45 +385,82 @@ class Game:
 
         # 임시, 나중에 가져와야함
         sample_ranking = {
-            ("1위", "홍길동", "987"),
-            ("2위", "전우치", "876"),
-            ("3위", "임꺽정", "765"),
-            ("4위", "장길산", "654"),
-            ("5위", "일지매", "543"),
+            ("1위", "홍길동", "987점"),
+            ("2위", "전우치", "876점"),
+            ("3위", "임꺽정", "765점"),
+            ("4위", "일지매", "654점"),
         }
 
         n = len(sample_ranking)
 
         table_left  = self.ranking_table_rect.left
-        table_right = self.ranking_table_rect.right
         table_top   = self.ranking_table_rect.top
+        table_bottom = self.ranking_table_rect.bottom
         table_width = self.ranking_table_rect.width
         table_height = self.ranking_table_rect.height
 
-        for idx, (rank, name, score) in enumerate(sample_ranking):
-            # 세로 위치 비율 (균등 배치)
-            t = (idx + 1) / (n + 1)
-            y = table_top + table_height * t
+        # 가로 위치 비율
+        x_rank  = table_left + table_width * 0.09   # rank는 왼쪽 9% 지점
+        x_name  = table_left + table_width * 0.35   # name은 왼쪽 35%
+        x_score = table_left + table_width * 0.50   # score는 중앙 50%
 
-            # 가로 위치 비율 (여기서 핵심!)
-            x_rank  = table_left + table_width * 0.09   # rank는 왼쪽 9% 지점
-            x_name  = table_left + table_width * 0.35   # name은 왼쪽 35%
-            x_score = table_left + table_width * 0.50   # score는 중앙 50%
+        # 내 점수 위치 비율
+        y_myrank = table_bottom + self.SCREEN_HEIGHT * 0.144
+        
+        rank_gap = table_height * 0.265   # 랭크 사이 간격 비율
+        for idx, (rank, name, score) in enumerate(sample_ranking):
+            y_rank = table_top + (table_height * 0.1024) + rank_gap * idx
 
             # 텍스트 출력
-            self.draw_text(rank,  self.font_medium, self.COLORS["dark_blue"], x_rank,  y, "center")
-            self.draw_text(name,  self.font_medium, self.COLORS["dark_blue"], x_name,  y, "center")
-            self.draw_text(str(score), self.font_medium, self.COLORS["dark_blue"], x_score, y, "center")
+            self.draw_text(
+                rank,
+                self.font_medium,
+                self.COLORS["dark_blue"],
+                x_rank, y_rank, "center"
+            )
+            self.draw_text(
+                name, 
+                self.font_medium,
+                self.COLORS["dark_blue"],
+                x_name,  y_rank, "center"
+            )
+            self.draw_text(
+                str(score),
+                self.font_medium,
+                self.COLORS["dark_blue"],
+                x_score, y_rank, "center"
+            )
+
+
+        # 내 랭크(등수) 표시
+        my_rank_text = f"Na" # 임시
+        self.draw_text(
+            my_rank_text,
+            self.font_large,
+            self.COLORS["white"],
+            x_rank, y_myrank, "center"
+        )
+
+        # 사용자 명칭 표시
+        my_name_text = f"Player"
+        self.draw_text(
+            my_name_text,
+            self.font_large,
+            self.COLORS["white"],
+            x_name, y_myrank, "center"
+        )
 
         # 내 점수 표시
-        my_score_text = f"내 점수: {self.score}"
+        my_score_text = f"{self.score}"
         self.draw_text(
             my_score_text,
             self.font_large,
             self.COLORS["white"],
-            self.SCREEN_WIDTH // 2,
-            self.SCREEN_HEIGHT - 200   # 주황색 바 중앙쯤이 되도록 조절
+            x_score, y_myrank, "center"
         )
+        
+
+
 
     def draw_game(self):
         self.road_segments.draw(self.screen)
