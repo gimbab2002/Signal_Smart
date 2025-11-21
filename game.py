@@ -418,7 +418,7 @@ class Game:
         x_score = table_left + table_width * 0.50   # score는 중앙 50%
 
         # 내 점수 위치 비율
-        y_myrank = table_bottom + self.SCREEN_HEIGHT * 0.144
+        y_myrank = self.SCREEN_HEIGHT - self.SCREEN_HEIGHT * 0.1706
         
         rank_gap = table_height * 0.265   # 랭크 사이 간격 비율
         for idx, (rank, name, score) in enumerate(sample_ranking):
@@ -427,19 +427,19 @@ class Game:
             # 텍스트 출력
             self.draw_text(
                 rank,
-                self.font_medium,
+                self.font_large,
                 self.COLORS["dark_blue"],
                 x_rank, y_rank, "center"
             )
             self.draw_text(
                 name, 
-                self.font_medium,
+                self.font_large,
                 self.COLORS["dark_blue"],
                 x_name,  y_rank, "center"
             )
             self.draw_text(
                 str(score),
-                self.font_medium,
+                self.font_large,
                 self.COLORS["dark_blue"],
                 x_score, y_rank, "center"
             )
