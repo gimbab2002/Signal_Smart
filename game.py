@@ -57,8 +57,13 @@ class Game:
         
         # 랭킹 목록 이미지 로딩
         self.ranking_table = pygame.image.load("assets/ui/ranking_table.png").convert_alpha()
-        # 화면 너비의 70% 크기로 스케일
+        # 화면 너비의 76% 크기로 스케일
         new_width = int(self.SCREEN_WIDTH * 0.76)
+
+        # 랭킹 페이지 내 뒤로가기 버튼
+        self.btn_back_rank = pygame.image.load("assets/ui/btn_back.png").convert_alpha()
+        # 뒤로가기 버튼 배치
+        self.btn_back_rank_rect = self.btn_back_rank.get_rect(center = (80, 80))
 
         # 테이블 원본 비율 유지
         orig_w, orig_h = self.ranking_table.get_size()
@@ -150,6 +155,13 @@ class Game:
                         # TUTORIAL 버튼 클릭
                         elif self.btn_tutorial_rect.collidepoint(mouse_pos):
                             self.game_state = self.STATE_HELP
+                
+                # 랭킹 화면에서 뒤로가기 버튼 클릭 감지
+                if self.game_state == self.STATE_RANKING:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        if self.btn_back_rank_rect.collidepoint(mouse_pos):
+                            self.game_state = self.STATE_MENU
             
             self.pose_detector.update()
             
@@ -380,16 +392,17 @@ class Game:
     def draw_ranking(self):
         # 배경
         self.screen.blit(self.ranking_bg, (0,0))
-        # 랭킹 목록
+        
+        # 랭킹 테이블 이미지
         self.screen.blit(self.ranking_table, self.ranking_table_rect)
 
         # 임시, 나중에 가져와야함
-        sample_ranking = {
+        sample_ranking = [
             ("1위", "홍길동", "987점"),
             ("2위", "전우치", "876점"),
             ("3위", "임꺽정", "765점"),
             ("4위", "일지매", "654점"),
-        }
+        ]
 
         n = len(sample_ranking)
 
@@ -459,6 +472,7 @@ class Game:
             x_score, y_myrank, "center"
         )
         
+        self.screen.blit(self.btn_back_rank, self.btn_back_rank_rect)
 
 
 
