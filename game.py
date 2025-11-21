@@ -16,6 +16,7 @@ class Game:
     STATE_RESULT_ANIM = 4
     STATE_GAMEOVER = 3
     STATE_HELP = 5
+    STATE_RANKING = 6
     
     MISSIONS = ["좌회전", "우회전", "정지"] 
 
@@ -48,6 +49,24 @@ class Game:
         self.btn_ranking = pygame.image.load("assets/ui/btn_ranking.png").convert_alpha()
         # 랭킹 버튼 위치 설정
         self.btn_ranking_rect = self.btn_ranking.get_rect(center=(self.SCREEN_WIDTH // 1.5, 680)) 
+
+        # 랭킹 배경 이미지 로딩
+        self.ranking_bg = pygame.image.load("assets/ui/ranking_bg.png").convert_alpha()
+        # 랭킹 배경 확장
+        self.ranking_bg = pygame.transform.scale(self.ranking_bg, (self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        
+        # 랭킹 목록 이미지 로딩
+        self.ranking_table = pygame.image.load("assets/ui/ranking_table.png").convert_alpha()
+        # 화면 너비의 70% 크기로 스케일
+        new_width = int(self.SCREEN_WIDTH * 0.76)
+
+        # 테이블 원본 비율 유지
+        orig_w, orig_h = self.ranking_table.get_size()
+        new_height = int(orig_h * (new_width / orig_w))
+
+        self.ranking_table = pygame.transform.scale(self.ranking_table, (new_width, new_height))
+
+        self.ranking_table_rect = self.ranking_table.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT * 0.42))
 
         # 수신호 교육 버튼 이미지 로딩
         self.btn_tutorial = pygame.image.load("assets/ui/btn_tutorial.png").convert_alpha()
@@ -113,6 +132,8 @@ class Game:
                         self.game_state = self.STATE_MENU
                     continue
 
+
+
             # --- 메뉴 상태에서 버튼 클릭 감지
                 if self.game_state == self.STATE_MENU:
                     if event.type == pygame.MOUSEBUTTONDOWN:
@@ -124,7 +145,7 @@ class Game:
 
                         # RANKING 버튼 클릭
                         elif self.btn_ranking_rect.collidepoint(mouse_pos):
-                            self.open_ranking()
+                            self.game_state = self.STATE_RANKING
 
                         # TUTORIAL 버튼 클릭
                         elif self.btn_tutorial_rect.collidepoint(mouse_pos):
@@ -334,6 +355,8 @@ class Game:
             self.draw_menu()
         elif self.game_state == self.STATE_HELP:
             self.draw_help_popup()
+        elif self.game_state == self.STATE_RANKING:
+            self.draw_ranking()
         else:
             self.draw_game()
 
@@ -354,9 +377,53 @@ class Game:
         # 도움말 이미지 표시
         self.screen.blit(self.help_img, self.help_img_rect)
 
-    def open_ranking(self):
-        print(">>> RANKING PAGE OPENED (미구현)")
-            # TODO : 추후 랭킹 UI 구현
+    def draw_ranking(self):
+        # 배경
+        self.screen.blit(self.ranking_bg, (0,0))
+        # 랭킹 목록
+        self.screen.blit(self.ranking_table, self.ranking_table_rect)
+
+        # 임시, 나중에 가져와야함
+        sample_ranking = {
+            ("1위", "홍길동", "987"),
+            ("2위", "전우치", "876"),
+            ("3위", "임꺽정", "765"),
+            ("4위", "장길산", "654"),
+            ("5위", "일지매", "543"),
+        }
+
+        n = len(sample_ranking)
+
+        table_left  = self.ranking_table_rect.left
+        table_right = self.ranking_table_rect.right
+        table_top   = self.ranking_table_rect.top
+        table_width = self.ranking_table_rect.width
+        table_height = self.ranking_table_rect.height
+
+        for idx, (rank, name, score) in enumerate(sample_ranking):
+            # 세로 위치 비율 (균등 배치)
+            t = (idx + 1) / (n + 1)
+            y = table_top + table_height * t
+
+            # 가로 위치 비율 (여기서 핵심!)
+            x_rank  = table_left + table_width * 0.09   # rank는 왼쪽 9% 지점
+            x_name  = table_left + table_width * 0.35   # name은 왼쪽 35%
+            x_score = table_left + table_width * 0.50   # score는 중앙 50%
+
+            # 텍스트 출력
+            self.draw_text(rank,  self.font_medium, self.COLORS["dark_blue"], x_rank,  y, "center")
+            self.draw_text(name,  self.font_medium, self.COLORS["dark_blue"], x_name,  y, "center")
+            self.draw_text(str(score), self.font_medium, self.COLORS["dark_blue"], x_score, y, "center")
+
+        # 내 점수 표시
+        my_score_text = f"내 점수: {self.score}"
+        self.draw_text(
+            my_score_text,
+            self.font_large,
+            self.COLORS["white"],
+            self.SCREEN_WIDTH // 2,
+            self.SCREEN_HEIGHT - 200   # 주황색 바 중앙쯤이 되도록 조절
+        )
 
     def draw_game(self):
         self.road_segments.draw(self.screen)
