@@ -17,6 +17,7 @@ class Game:
     STATE_GAMEOVER = 3
     STATE_HELP = 5
     STATE_RANKING = 6
+    STATE_PAUSE = 7 
     
     MISSIONS = ["좌회전", "우회전", "정지"] 
 
@@ -81,16 +82,28 @@ class Game:
         # 수신호 팝업 이미지 로딩
         self.help_img = pygame.image.load("assets/ui/help_popup.png").convert_alpha()
         self.help_img_rect = self.help_img.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
+
+        # Pause 화면 버튼들
+        self.btn_resume = pygame.image.load("assets/ui/btn_resume.png").convert_alpha()
+        self.btn_resume_rect = self.btn_resume.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 - 80))
+
+        self.btn_quit_game = pygame.image.load("assets/ui/btn_quit.png").convert_alpha()
+        self.btn_quit_game_rect = self.btn_quit_game.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 80))
+
         
         self.COLORS = {
             "dark_blue": (44, 62, 80), "white": (255, 255, 255),
             "green": (46, 204, 113), "red": (231, 76, 60),
             "yellow": (241, 196, 15), "blue": (52, 152, 219),
-            "road_gray": (50, 50, 60)
+            "road_gray": (50, 50, 60), "black" : (40, 40, 40)
         }
         self.font_large = pygame.font.SysFont("malgungothic", 60, bold=True)
         self.font_medium = pygame.font.SysFont("malgungothic", 36, bold=True)
         self.font_small = pygame.font.SysFont("malgungothic", 24)
+
+        base_h = self.SCREEN_HEIGHT
+
+        self.font_rank = pygame.font.SysFont("malgungothic", int(base_h * 0.035), bold=True)
 
         self.pose_detector = PoseDetector() 
         self.pose_detector.start()
@@ -123,20 +136,36 @@ class Game:
         running = True
         while running:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                
-                # ESC 종료
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        running = False
 
-                # HELP 팝업 상태 처리
+                # --- HELP 팝업 상태 우선 처리 ---
                 if self.game_state == self.STATE_HELP:
+                    # 클릭하면 팝업 닫기
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         self.game_state = self.STATE_MENU
+                    # ESC는 무시
                     continue
 
+                # PAUSE 상태 ESC 무시
+                if self.game_state == self.STATE_PAUSE:
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        continue
+
+                # --- ESC 키 처리 ---
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+
+                    # 플레이 중 ESC → 일시정지
+                    if self.game_state == self.STATE_PLAYING:
+                        self.game_state = self.STATE_PAUSE
+                        continue
+
+                    # 메뉴에서 ESC → 프로그램 종료
+                    if self.game_state == self.STATE_MENU:
+                        running = False
+                        continue
+
+                    # 기타 상태에서 ESC → 종료
+                    running = False
+                    continue
 
 
             # --- 메뉴 상태에서 버튼 클릭 감지
@@ -162,6 +191,24 @@ class Game:
                         mouse_pos = pygame.mouse.get_pos()
                         if self.btn_back_rank_rect.collidepoint(mouse_pos):
                             self.game_state = self.STATE_MENU
+
+                # PAUSE 상태
+                if self.game_state == self.STATE_PAUSE:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+
+                        # Resume 버튼
+                        if self.btn_resume_rect.collidepoint(mouse_pos):
+                            self.game_state = self.STATE_PLAYING
+                            continue
+
+                        # Quit 버튼
+                        if self.btn_quit_game_rect.collidepoint(mouse_pos):
+                            self.game_state = self.STATE_MENU
+                            continue 
+
+                    continue
+
             
             self.pose_detector.update()
             
@@ -369,6 +416,8 @@ class Game:
             self.draw_help_popup()
         elif self.game_state == self.STATE_RANKING:
             self.draw_ranking()
+        elif self.game_state == self.STATE_PAUSE:
+            self.draw_pause()
         else:
             self.draw_game()
 
@@ -388,6 +437,18 @@ class Game:
         
         # 도움말 이미지 표시
         self.screen.blit(self.help_img, self.help_img_rect)
+
+    def draw_pause(self):
+        self.draw_game()
+
+        overlay = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        overlay.set_alpha(160)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+
+        # 버튼 배치
+        self.screen.blit(self.btn_resume, self.btn_resume_rect)
+        self.screen.blit(self.btn_quit_game, self.btn_quit_game_rect)
 
     def draw_ranking(self):
         # 배경
@@ -427,20 +488,20 @@ class Game:
             # 텍스트 출력
             self.draw_text(
                 rank,
-                self.font_large,
-                self.COLORS["dark_blue"],
+                self.font_rank,
+                self.COLORS["black"],
                 x_rank, y_rank, "center"
             )
             self.draw_text(
                 name, 
-                self.font_large,
-                self.COLORS["dark_blue"],
+                self.font_rank,
+                self.COLORS["black"],
                 x_name,  y_rank, "center"
             )
             self.draw_text(
                 str(score),
-                self.font_large,
-                self.COLORS["dark_blue"],
+                self.font_rank,
+                self.COLORS["black"],
                 x_score, y_rank, "center"
             )
 
@@ -449,7 +510,7 @@ class Game:
         my_rank_text = f"Na" # 임시
         self.draw_text(
             my_rank_text,
-            self.font_large,
+            self.font_rank,
             self.COLORS["white"],
             x_rank, y_myrank, "center"
         )
@@ -458,7 +519,7 @@ class Game:
         my_name_text = f"Player"
         self.draw_text(
             my_name_text,
-            self.font_large,
+            self.font_rank,
             self.COLORS["white"],
             x_name, y_myrank, "center"
         )
@@ -467,7 +528,7 @@ class Game:
         my_score_text = f"{self.score}"
         self.draw_text(
             my_score_text,
-            self.font_large,
+            self.font_rank,
             self.COLORS["white"],
             x_score, y_myrank, "center"
         )
