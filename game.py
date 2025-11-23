@@ -75,6 +75,7 @@ class Game:
             )
 
     def __init__(self):
+        pygame.mixer.init()
         pygame.init()
         info = pygame.display.Info()     
         self.screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
@@ -264,6 +265,7 @@ class Game:
 
                     # 플레이 중 ESC → 일시정지
                     if self.game_state == self.STATE_PLAYING:
+                        pygame.mixer.music.pause()
                         self.game_state = self.STATE_PAUSE
                         continue
 
@@ -370,11 +372,13 @@ class Game:
 
                         # Resume 버튼
                         if self.btn_resume_rect.collidepoint(mouse_pos):
+                            pygame.mixer.music.unpause()
                             self.game_state = self.STATE_PLAYING
                             continue
 
                         # Quit 버튼
                         if self.btn_quit_game_rect.collidepoint(mouse_pos):
+                            pygame.mixer.music.stop()
                             self.game_state = self.STATE_MENU
                             continue 
 
@@ -755,8 +759,8 @@ class Game:
         if frame is not None:
             try:
                 surf = pygame.surfarray.make_surface(frame.swapaxes(0,1))
-                surf = pygame.transform.scale(surf, (200, 150))
-                self.screen.blit(surf, (self.SCREEN_WIDTH-210, self.SCREEN_HEIGHT-160))
+                surf = pygame.transform.scale(surf, (300, 200))
+                self.screen.blit(surf, (self.SCREEN_WIDTH-310, self.SCREEN_HEIGHT-210))
             except: pass
 
     def draw_text(self, text, font, color, x, y, align="center"):
@@ -770,6 +774,14 @@ class Game:
     def start_game(self):
         if self.pose_detector.cap is None: self.pose_detector.start()
         
+        try:
+            pygame.mixer.music.load("assets/sound/bgm.mp3")
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1)
+        except:
+            print("⚠️ BGM 파일 로드 실패: assets/sound/bgm.mp3")
+
+
         self.score = 0
         self.mistakes = 0
         self.road_segments.empty()

@@ -14,4 +14,4 @@ if __name__ == "__main__":
             game_instance.pose_detector.stop()
         
         pygame.quit() 
-        sys.exit()
+        sys.exit()  
