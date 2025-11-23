@@ -820,6 +820,7 @@ class Game:
 
     def game_over(self):
 
+        pygame.mixer.music.stop()
         if self.logged_in:
             self.user_manager.save_score(self.login_email, self.score)
 
