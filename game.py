@@ -633,13 +633,12 @@ class Game:
         # 랭킹 테이블 이미지
         self.screen.blit(self.ranking_table, self.ranking_table_rect)
 
-        # 임시, 나중에 가져와야함
-        sample_ranking = [
-            ("1위", "홍길동", "987점"),
-            ("2위", "전우치", "876점"),
-            ("3위", "임꺽정", "765점"),
-            ("4위", "일지매", "654점"),
-        ]
+        ranking_raw = self.user_manager.get_ranking(top_n=10)
+
+        sample_ranking = []
+        for idx, (email, score) in enumerate(ranking_raw, start=1):
+            name = email.split("@")[0]  # 이메일 앞부분만 닉네임처럼 사용
+            sample_ranking.append((f"{idx}위", name, f"{score}점"))
 
         n = len(sample_ranking)
 
@@ -683,30 +682,56 @@ class Game:
 
 
         # 내 랭크(등수) 표시
-        my_rank_text = f"Na" # 임시
+        my_rank_num = "Na"
+        for idx, (email, score) in enumerate(ranking_raw, start=1):
+            if email == self.login_email:
+                my_rank_num = f"{idx}위"
+                break
+
+        my_rank_text = my_rank_num
+
+        # 사용자 닉네임(이메일 앞부분)
+        my_name_text = self.login_email.split("@")[0]
+
+        # 내 최고 점수 가져오기
+        my_score_value = self.user_manager.users.get(
+            self.login_email, {}
+        ).get("best_score", 0)
+        my_score_text = f"{my_score_value}점"
+
+        # 내 이름 가져오기
+        my_name_text = self.login_email.split("@")[0]
+
+        # 내 랭크 계산
+        my_rank_text = "Na"
+        for idx, (email, score) in enumerate(ranking_raw, start=1):
+            if email == self.login_email:
+                my_rank_text = f"{idx}위"
+                break
+
+        # === 하단 파란색 바에 내 정보 표시 ===
         self.draw_text(
             my_rank_text,
             self.font_rank,
             self.COLORS["white"],
-            x_rank, y_myrank, "center"
+            x_rank, y_myrank,
+            "center"
         )
 
-        # 사용자 명칭 표시
-        my_name_text = f"Player"
         self.draw_text(
             my_name_text,
             self.font_rank,
             self.COLORS["white"],
-            x_name, y_myrank, "center"
+            x_name, y_myrank,
+            "center"
         )
 
-        # 내 점수 표시
-        my_score_text = f"{self.score}"
         self.draw_text(
             my_score_text,
             self.font_rank,
             self.COLORS["white"],
-            x_score, y_myrank, "center"
+            x_score, y_myrank,
+            "center"
         )
         
         self.screen.blit(self.btn_back_rank, self.btn_back_rank_rect)
@@ -782,5 +807,9 @@ class Game:
         self.game_state = self.STATE_PLAYING
 
     def game_over(self):
+
+        if self.logged_in:
+            self.user_manager.save_score(self.login_email, self.score)
+
         self.game_state = self.STATE_GAMEOVER
         self.last_state_change_time = pygame.time.get_ticks()

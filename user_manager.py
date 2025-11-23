@@ -61,3 +61,27 @@ class UserManager:
             return False, "비밀번호가 일치하지 않습니다."
 
         return True, "로그인 성공!"
+    
+    def save_score(self, email, score):
+        """해당 사용자의 최고 점수를 갱신"""
+        if email not in self.users:
+            return False
+
+        prev = self.users[email].get("best_score", 0)
+        if score > prev:
+            self.users[email]["best_score"] = score
+            self.save_users()
+
+        return True
+    
+    def get_ranking(self, top_n=10):
+        """전체 사용자 중 best_score 순위 리스트 반환"""
+        ranking_list = []
+
+        for email, data in self.users.items():
+            best_score = data.get("best_score", 0)
+            ranking_list.append((email, best_score))
+
+        ranking_list.sort(key=lambda x: x[1], reverse=True)
+
+        return ranking_list[:top_n]
