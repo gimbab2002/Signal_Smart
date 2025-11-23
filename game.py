@@ -1,3 +1,4 @@
+from user_manager import UserManager
 import pygame
 import sys
 import random
@@ -18,8 +19,60 @@ class Game:
     STATE_HELP = 5
     STATE_RANKING = 6
     STATE_PAUSE = 7 
+    STATE_LOGIN = 8
     
     MISSIONS = ["좌회전", "우회전", "정지"] 
+
+    def draw_login_menu(self):
+        # 1) 배경
+        self.screen.blit(self.bg_main, (0, 0))
+        self.screen.blit(self.title_banner, self.title_banner_rect)
+
+        # 2) EMAIL 입력 박스
+        self.screen.blit(self.img_email_box, self.email_rect)
+
+
+        # 3) PASSWORD 입력 박스(PNG)
+        self.screen.blit(self.img_pw_box, self.pw_rect)
+
+        hidden_pw = "*" * len(self.login_pw) if self.login_pw else "Password"
+
+
+        # 4) LOGIN 버튼(PNG)
+        self.screen.blit(self.img_login_btn, self.btn_login_rect)
+
+        # 5) SIGNUP 버튼(PNG)
+        self.screen.blit(self.img_signup_btn, self.btn_signup_rect)
+
+        if self.login_email:
+            self.draw_text(
+                self.login_email,
+                self.font_medium,
+                (0, 0, 0),
+                self.email_rect.centerx,
+                self.email_rect.centery,
+            )
+
+        # 6) 비밀번호 입력 텍스트 (**** 처리)
+        if self.login_pw:
+            hidden_pw = "*" * len(self.login_pw)
+            self.draw_text(
+                hidden_pw,
+                self.font_medium,
+                (0, 0, 0),
+                self.pw_rect.centerx,
+                self.pw_rect.centery,
+            )
+
+        # 6) 메시지 (오류 메시지 등)
+        if self.login_message:
+            self.draw_text(
+                self.login_message,
+                self.font_small,
+                (255, 0, 0),
+                self.SCREEN_WIDTH // 2,
+                self.btn_login_rect.bottom + 60,
+            )
 
     def __init__(self):
         pygame.init()
@@ -90,7 +143,27 @@ class Game:
         self.btn_quit_game = pygame.image.load("assets/ui/btn_quit.png").convert_alpha()
         self.btn_quit_game_rect = self.btn_quit_game.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 80))
 
-        
+        # 로그인 UI 이미지 로딩
+        self.img_email_box = pygame.image.load("assets/ui/btn_email.png").convert_alpha()
+        self.img_pw_box = pygame.image.load("assets/ui/btn_password.png").convert_alpha()
+        self.img_login_btn = pygame.image.load("assets/ui/btn_login.png").convert_alpha()
+        self.img_signup_btn = pygame.image.load("assets/ui/btn_signup.png").convert_alpha()
+
+        # 로그인 UI 좌표 설정
+        self.email_rect = self.img_email_box.get_rect(
+            center=(self.SCREEN_WIDTH // 2, 440)
+        )
+        self.pw_rect = self.img_pw_box.get_rect(
+            center=(self.SCREEN_WIDTH // 2, 540)
+        )
+        self.btn_login_rect = self.img_login_btn.get_rect(
+            center=(self.SCREEN_WIDTH // 2 - 180, 670)
+        )
+        self.btn_signup_rect = self.img_signup_btn.get_rect(
+            center=(self.SCREEN_WIDTH // 2 + 180, 670)
+        )
+
+
         self.COLORS = {
             "dark_blue": (44, 62, 80), "white": (255, 255, 255),
             "green": (46, 204, 113), "red": (231, 76, 60),
@@ -104,6 +177,19 @@ class Game:
         base_h = self.SCREEN_HEIGHT
 
         self.font_rank = pygame.font.SysFont("malgungothic", int(base_h * 0.035), bold=True)
+
+        # 로그인 시스템 초기화
+        self.user_manager = UserManager()
+
+        self.logged_in = False
+        self.login_email = ""
+        self.login_pw = ""
+        self.login_message = ""
+        self.is_register_mode = False
+        self.is_typing_pw = False
+        # 게임 시작 상태를 로그인 화면으로 설정
+        self.game_state = self.STATE_LOGIN
+
 
         self.pose_detector = PoseDetector() 
         self.pose_detector.start()
@@ -119,7 +205,7 @@ class Game:
         self.map_queue = [] 
         self.logical_direction = DIR_UP 
         
-        self.game_state = self.STATE_MENU
+        # self.game_state = self.STATE_MENU
         self.score = 0
         self.mistakes = 0
         self.current_mission = ""
@@ -130,7 +216,30 @@ class Game:
         self.player_direction = DIR_UP 
         self.base_speed = 15 
         self.world_velocity = [0, -self.base_speed] 
-        self.last_spawned_segment = None 
+        self.last_spawned_segment = None
+
+
+    def process_auth(self):
+        email = self.login_email.strip()
+        pw = self.login_pw.strip()
+
+        if not email or not pw:
+            self.login_message = "이메일과 비밀번호를 입력하세요."
+            return
+
+        # 회원가입 모드인지 로그인 모드인지에 따라 처리
+        if self.is_register_mode:
+            ok, msg = self.user_manager.register(email, pw)
+        else:
+            ok, msg = self.user_manager.login(email, pw)
+
+        self.login_message = msg
+
+    # 성공하면 메뉴 화면으로 이동
+        if ok:
+            self.logged_in = True
+            self.game_state = self.STATE_MENU
+
 
     def run(self):
         running = True
@@ -166,6 +275,68 @@ class Game:
                     # 기타 상태에서 ESC → 종료
                     running = False
                     continue
+
+                # LOGIN 상태: 클릭 + 키보드 입력 처리
+                if self.game_state == self.STATE_LOGIN:
+
+                    # --- 마우스 클릭 처리 ---
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mx, my = pygame.mouse.get_pos()
+
+                        # 이메일 입력 박스 클릭
+                        if self.email_rect.collidepoint((mx, my)):
+                            self.is_typing_pw = False
+                            continue
+
+                        # 비밀번호 입력 박스 클릭
+                        elif self.pw_rect.collidepoint((mx, my)):
+                            self.is_typing_pw = True
+                            continue
+
+                        # LOGIN 버튼 클릭
+                        elif self.btn_login_rect.collidepoint((mx, my)):
+                            self.is_register_mode = False
+                            self.process_auth()
+                            continue
+
+                        # SIGN UP 버튼 클릭
+                        elif self.btn_signup_rect.collidepoint((mx, my)):
+                            self.is_register_mode = True
+                            self.process_auth()
+                            continue
+
+                        continue  # 로그인 화면에서 다른 클릭 무시
+
+                    # --- 키보드 입력 처리 ---
+                    if event.type == pygame.KEYDOWN:
+
+                        # Backspace
+                        if event.key == pygame.K_BACKSPACE:
+                            if self.is_typing_pw:
+                                self.login_pw = self.login_pw[:-1]
+                            else:
+                                self.login_email = self.login_email[:-1]
+                            continue
+
+                        # TAB → email/pw 전환
+                        elif event.key == pygame.K_TAB:
+                            self.is_typing_pw = not self.is_typing_pw
+                            continue
+
+                        # ENTER → 실행
+                        elif event.key == pygame.K_RETURN:
+                            self.process_auth()
+                            continue
+
+                        # 일반 문자 입력
+                        else:
+                            if self.is_typing_pw:
+                                self.login_pw += event.unicode
+                            else:
+                                self.login_email += event.unicode
+                            continue
+
+                    continue  # LOGIN 상태 이벤트 종료
 
 
             # --- 메뉴 상태에서 버튼 클릭 감지
@@ -409,6 +580,11 @@ class Game:
             self.game_state = self.STATE_MENU
 
     def draw(self):
+        # 1) 로그인 화면 먼저 확인
+        if self.game_state == self.STATE_LOGIN:
+            self.draw_login_menu()
+            return
+        
         self.background.draw(self.screen)
         if self.game_state == self.STATE_MENU:
             self.draw_menu()
